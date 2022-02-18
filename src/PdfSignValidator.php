@@ -57,19 +57,34 @@ abstract class PdfSignValidator
         $pdfCert = self::infoFromPDF($pdf);
         $pemCert = self::infoFromPEM($pem);
         $res = $pdfCert['cert']->verify($pemCert['cert']->tbsCertificate()->subjectPublicKeyInfo());
-        #$res = ($pdfCert['signature'] == $pemCert['signature']);
 
         return $res;
     }
 
     /**
-     * Validates that the file certificate (extracted from signature) match the subject's PEM certificate.
+     * Validates that the subject certificate was issued by the issuer certificate.
+     *
+     * @param string $subjectPem Path to the subject's PEM file.
+     * @param string $issuerPem Path to the issuer's PEM file.
+     * @return bool
+     */
+    public static function certIsValid($subjectPem, $issuerPem): bool
+    {
+        $subjectCert = self::infoFromPEM($subjectPem)['cert'];
+        $issuerCert = self::infoFromPEM($issuerPem)['cert'];
+        $res = $subjectCert->verify($issuerCert->tbsCertificate()->subjectPublicKeyInfo());
+
+        return $res;
+    }
+
+    /**
+     * Validates that the certificate (extracted from the signature) match the subject's PEM certificate.
      *
      * @param string $pdf Path to the signed PDF file.
      * @param string $pem Path to the subject's PEM file.
      * @return bool
      */
-    public static function certIsValid($pdf, $pem): bool
+    public static function signMatchSubject($pdf, $pem): bool
     {
         $pdfCert = self::infoFromPDF($pdf);
         $pemCert = self::infoFromPEM($pem);
