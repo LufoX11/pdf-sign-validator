@@ -19,7 +19,7 @@ There are 5 methods you may'd like to use:
 **infoFromPDF**: Get the info from an attached certificate to a PDF file.\
 **infoFromPEM**: Get the info from a PEM certificate file.\
 **signIsValid**: Validates that the file signature corresponds to the issuer's root PEM certificate.\
-**certIsValid**: Validates that the subject certificate was issued by the issuer certificate.
+**certIsValid**: Validates that the subject certificate was issued by the issuer certificate.\
 **signMatchSubject**: Validates that the certificate (extracted from the signature) match the subject's PEM certificate.
 
 A real use case (Argentina):
@@ -31,18 +31,15 @@ A real use case (Argentina):
 ```php
 use LufoX11\PdfSignValidator\PdfSignValidator;
 
-// signed.pdf: Path to the signed PDF file.
-// issuer.cer: Path to the public key file (RSA PUBLIC KEY) of the issuer.
+/**
+ * signed.pdf: Path to the signed PDF file.
+ * issuer.cer: Path to the public key file (RSA PUBLIC KEY) of the issuer.
+ * subject.cer: Path to the public key file (RSA PUBLIC KEY) of the subject.
+ */
+
 $signatureIsValid = PdfSignValidator::signIsValid('signed.pdf', 'issuer.cer');
-
-// subject.cer: Path to the public key file (RSA PUBLIC KEY) of the subject.
-// issuer.cer: Path to the public key file (RSA PUBLIC KEY) of the issuer.
 $certificateIsValid = PdfSignValidator::certIsValid('subject.cer', 'issuer.cer');
-
-// signed.pdf: Path to the signed PDF file.
-// subject.cer: Path to the public key file (RSA PUBLIC KEY) of the subject.
 $certificateMatchSubject = PdfSignValidator::signMatchSubject('signed.pdf', 'subject.cer');
-
 $certificateData =  PdfSignValidator::infoFromPEM('certificate.cer');
 $certificateData =  PdfSignValidator::infoFromPDF('signed.pdf');
 ```
