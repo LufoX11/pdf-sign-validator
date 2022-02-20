@@ -106,6 +106,7 @@ abstract class PdfSignValidator
         $issuer = $cert->tbsCertificate()->issuer();
         $validity = $cert->tbsCertificate()->validity();
         try { $res['subject']['common_name'] = (string) $subject->firstValueOf('commonName'); } catch (\Exception $e) {}
+        try { $res['subject']['owner'] = (string) $subject->firstValueOf('o'); } catch (\Exception $e) {}
         try { $res['subject']['serial_number'] = (string) $subject->firstValueOf('serialNumber'); } catch (\Exception $e) {}
         try { $res['subject']['country'] = (string) $subject->firstValueOf('c'); } catch (\Exception $e) {}
         try { $res['issuer']['owner'] = (string) $issuer->firstValueOf('o'); } catch (\Exception $e) {}
