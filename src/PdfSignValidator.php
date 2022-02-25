@@ -7,19 +7,44 @@ use Sop\ASN1\Element;
 use Sop\X509\Certificate\Certificate;
 use Sop\X509\Certificate\TBSCertificate;
 use Sop\CryptoEncoding\PEM;
+use BinaryCube\DotArray\DotArray;
 
 abstract class PdfSignValidator
 {
+    const SIGN_REGEX = '/ByteRange\s*\[(\d+) (\d+) (\d+) (\d+)?/';
+
     /**
-     * Reads an attached certificate to a PDF file and returns the info inside.
+     * Returns the amount of signatures found in file.
+     *
+     * @param string $filePath Path to the PDF file.
+     * @return int
+     */
+    public static function signCount($filePath): int
+    {
+        self::mustBeReadable($filePath);
+        $res = 0;
+        if (preg_match_all(self::SIGN_REGEX, file_get_contents($filePath), $matches)) {
+            $res = count($matches[0]);
+        }
+
+        return $res;
+    }
+
+    /**
+     * Reads an attached signature to a PDF file and returns the info inside.
      *
      * @param string $filePath Path to the PDF file.
      * @return array
      */
     public static function infoFromPDF($filePath): array
     {
-        $pkcs7 = self::pdf2pkcs7($filePath);
-        $res = self::infoFromPKCS7($pkcs7);
+        self::mustBeReadable($filePath);
+        $res = [];
+        if ($signatures = self::pdf2pkcs7($filePath)) {
+            foreach ($signatures as $s) {
+                $res[] = self::infoFromPKCS7($s);
+            }
+        }
 
         return $res;
     }
@@ -33,14 +58,11 @@ abstract class PdfSignValidator
      */
     public static function infoFromPEM($filePath): array
     {
+        self::mustBeReadable($filePath);
         $res = [];
-        if (is_readable($filePath)) {
-            $pem = PEM::fromFile($filePath);
-            $cert = Certificate::fromPEM($pem);
-            $res = self::formatCertificate($cert);
-        } else {
-            throw new \Exception("Couldn't open file {$filePath}.");
-        }
+        $pem = PEM::fromFile($filePath);
+        $cert = Certificate::fromPEM($pem);
+        $res = self::formatCertificate($cert);
 
         return $res;
     }
@@ -48,15 +70,35 @@ abstract class PdfSignValidator
     /**
      * Validates that the file signature corresponds to the issuer's root PEM certificate.
      *
+     * Note: If multiple signatures are found you can specify which one you want to validate through
+     * $which param, otherwise the last one will be evaluated. If there is more than one match, only
+     * the first will be considered.
+     *
      * @param string $pdf Path to the signed PDF file.
      * @param string $pem Path to the issuer's PEM file.
+     * @param array $which Dot notation of the key and value of the signature we want to validate.
+     *                     Eg: [ 'subject.common_name' => 'Lionel Messi' ]
      * @return bool
      */
-    public static function signIsValid($pdf, $pem): bool
+    public static function signIsValid($pdf, $pem, array $which = null): bool
     {
+        $res = false;
         $pdfCert = self::infoFromPDF($pdf);
         $pemCert = self::infoFromPEM($pem);
-        $res = $pdfCert['cert']->verify($pemCert['cert']->tbsCertificate()->subjectPublicKeyInfo());
+
+        if ($which) {
+            if ($pdfCert = DotArray::create($pdfCert)->find(
+                fn ($v) => DotArray::create($v)->get(key($which)) == current($which)
+            )) {
+                $pdfCert = $pdfCert->toArray();
+            }
+        } else {
+            $pdfCert = end($pdfCert);
+        }
+
+        if ($pdfCert) {
+            $res = $pdfCert['cert']->verify($pemCert['cert']->tbsCertificate()->subjectPublicKeyInfo());
+        }
 
         return $res;
     }
@@ -80,15 +122,35 @@ abstract class PdfSignValidator
     /**
      * Validates that the certificate (extracted from the signature) match the subject's PEM certificate.
      *
+     * Note: If multiple signatures are found you can specify which one you want to match through
+     * $which param, otherwise the last one will be evaluated. If there is more than one match, only
+     * the first will be considered.
+     *
      * @param string $pdf Path to the signed PDF file.
      * @param string $pem Path to the subject's PEM file.
+     * @param array $which Dot notation of the key and value of the signature we want to match.
+     *                     Eg: [ 'subject.common_name' => 'Lionel Messi' ]
      * @return bool
      */
-    public static function signMatchSubject($pdf, $pem): bool
+    public static function signMatchSubject($pdf, $pem, array $which = null): bool
     {
+        $res = false;
         $pdfCert = self::infoFromPDF($pdf);
         $pemCert = self::infoFromPEM($pem);
-        $res = $pdfCert['cert']->equals($pemCert['cert']);
+
+        if ($which) {
+            if ($pdfCert = DotArray::create($pdfCert)->find(
+                fn ($v) => DotArray::create($v)->get(key($which)) == current($which)
+            )) {
+                $pdfCert = $pdfCert->toArray();
+            }
+        } else {
+            $pdfCert = end($pdfCert);
+        }
+
+        if ($pdfCert) {
+            $res = $pdfCert['cert']->equals($pemCert['cert']);
+        }
 
         return $res;
     }
@@ -123,25 +185,26 @@ abstract class PdfSignValidator
     }
 
     /**
-     * Returns the attached certificate from a PDF file in PKCS7 format (binary).
+     * Returns the attached signature(s) from a PDF file in PKCS7 format (binary).
      *
      * @param string $filePath Path to the PDF file.
-     * @return mixed
+     * @return array
      */
-    protected static function pdf2pkcs7($filePath)
+    protected static function pdf2pkcs7($filePath): array
     {
-        $res = false;
-        if (is_readable($filePath)) {
-            preg_match_all('/ByteRange\s*\[(\d+) (\d+) (\d+)/', file_get_contents($filePath), $bytes);
-            if ($bytes[2][0] ?? $bytes[3][0] ?? false) {
-                $start = $bytes[2][0];
-                $end = $bytes[3][0];
+        self::mustBeReadable($filePath);
+        $res = [];
+        preg_match_all(self::SIGN_REGEX, file_get_contents($filePath), $bytes);
+        if ($bytes[2][0] ?? $bytes[3][0] ?? false) {
+
+            // In case more than one signature is found
+            for ($i = 0; $i < count($bytes[2]); $i++) {
+                $start = $bytes[2][$i];
+                $end = $bytes[3][$i];
                 $stream = fopen($filePath, 'rb');
-                $res = hex2bin(stream_get_contents($stream, $end - $start - 2, $start + 1));
+                $res[] = hex2bin(stream_get_contents($stream, $end - $start - 2, $start + 1));
                 fclose($stream);
             }
-        } else {
-            throw new \Exception("Couldn't open file {$filePath}.");
         }
 
         return $res;
@@ -163,5 +226,18 @@ abstract class PdfSignValidator
         $res = self::formatCertificate($cert);
 
         return $res;
+    }
+
+    /**
+     * Through a new exception if the passed file is not readable.
+     *
+     * @param string $file File path.
+     * @return void
+     */
+    private static function mustBeReadable($file): void
+    {
+        if (!is_readable($file)) {
+            throw new \Exception("Couldn't open file {$file}.");
+        }
     }
 }

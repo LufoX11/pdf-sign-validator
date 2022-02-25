@@ -5,7 +5,8 @@
     "require": {
         "php": ">=7.2",
         "sop/asn1": "^4.1",
-        "sop/x509": "^0.7.1"
+        "sop/x509": "^0.7.1",
+        "binary-cube/dot-array": "dev-master"
     },
     "license": "MIT",
     "authors": [

@@ -14,13 +14,14 @@ composer require lufox11/pdf-sign-validator
 
 ## Usage
 
-There are 5 methods you may'd like to use:
+Methods you may'd like to use:
 
-**infoFromPDF**: Get the info from an attached certificate to a PDF file.\
-**infoFromPEM**: Get the info from a PEM certificate file.\
+**signCount**: Returns the amount of signatures found in file.\
 **signIsValid**: Validates that the file signature corresponds to the issuer's root PEM certificate.\
 **certIsValid**: Validates that the subject certificate was issued by the issuer certificate.\
-**signMatchSubject**: Validates that the certificate (extracted from the signature) match the subject's PEM certificate.
+**signMatchSubject**: Validates that the certificate (extracted from the signature) match the subject's PEM certificate.\
+**infoFromPDF**: Reads an attached signature to a PDF file and returns the info inside.\
+**infoFromPEM**: Reads a certificate in PEM format and returns the info inside.\
 
 A real use case (Argentina):
 
@@ -37,11 +38,19 @@ use LufoX11\PdfSignValidator\PdfSignValidator;
  * subject.cer: Path to the public key file (RSA PUBLIC KEY) of the subject.
  */
 
-$signatureIsValid = PdfSignValidator::signIsValid('signed.pdf', 'issuer.cer');
+$amountOfSignatures = PdfSignValidator::signCount('signed.pdf');
 $certificateIsValid = PdfSignValidator::certIsValid('subject.cer', 'issuer.cer');
+$certificateData = PdfSignValidator::infoFromPEM('certificate.cer');
+$certificateData = PdfSignValidator::infoFromPDF('signed.pdf');
+
+// Single signature in PDF file
+$signatureIsValid = PdfSignValidator::signIsValid('signed.pdf', 'issuer.cer');
 $certificateMatchSubject = PdfSignValidator::signMatchSubject('signed.pdf', 'subject.cer');
-$certificateData =  PdfSignValidator::infoFromPEM('certificate.cer');
-$certificateData =  PdfSignValidator::infoFromPDF('signed.pdf');
+
+// Multiple signatures in PDF file
+// You can specify the signature to work with in dot notation
+$signatureIsValid = PdfSignValidator::signIsValid('signed.pdf', 'issuer.cer', [ 'subject.common_name' => 'Lionel Messi' ]);
+$certificateMatchSubject = PdfSignValidator::signMatchSubject('signed.pdf', 'subject.cer', [ 'issuer.common_name' => 'Magnus Carlsen' ]);
 ```
 
 ## License
