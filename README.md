@@ -21,7 +21,7 @@ Methods you may'd like to use:
 **certIsValid**: Validates that the subject certificate was issued by the issuer certificate.\
 **signMatchSubject**: Validates that the certificate (extracted from the signature) match the subject's PEM certificate.\
 **infoFromPDF**: Reads an attached signature to a PDF file and returns the info inside.\
-**infoFromPEM**: Reads a certificate in PEM format and returns the info inside.\
+**infoFromPEM**: Reads a certificate in PEM format and returns the info inside.
 
 A real use case (Argentina):
 
