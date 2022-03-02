@@ -59,7 +59,6 @@ abstract class PdfSignValidator
     public static function infoFromPEM($filePath): array
     {
         self::mustBeReadable($filePath);
-        $res = [];
         $pem = PEM::fromFile($filePath);
         $cert = Certificate::fromPEM($pem);
         $res = self::formatCertificate($cert);
